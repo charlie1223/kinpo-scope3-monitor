@@ -1,0 +1,13 @@
+# 敏感設定檔
+config.py
+
+# Python
+__pycache__/
+*.pyc
+
+# 日誌
+*.log
+
+# 截圖（除錯用）
+screenshot*.png
+debug*.png

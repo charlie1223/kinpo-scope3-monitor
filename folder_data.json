@@ -1,1 +1,132 @@
-{}
+{
+  "Castlenet": {
+    "S3C1 Purchased goods and services (Castlenet)_20251216.xlsx": "12月17日",
+    "S3C10 Processing of sold products (Castlenet)_20251209.xlsx": "12月17日",
+    "S3C11 Use of sold products (Castlenet)_20251202.xlsx": "12月17日",
+    "S3C12 End-of-life treatment of sold products (Castlenet)_20251202.xlsx": "12月17日",
+    "S3C13 Downstream leased assets (Castlenet)_20251210.xlsx": "12月17日",
+    "S3C2 Capital goods (Castlenet)_20251209.xlsx": "12月17日",
+    "S3C3 Fuel- and Energy-Related (Castlenet)_20251210.xlsx": "12月17日",
+    "S3C4 Upstream transport (Castlenet)_20251209.xlsx": "12月17日",
+    "S3C5 Waste Generated in Operations (Castlenet)_20251210.xlsx": "12月17日",
+    "S3C6 Business travel (Castlenet)_20251210.xlsx": "12月17日",
+    "S3C8 Upstream leased assets (Castlenet)_20251210.xlsx": "12月17日",
+    "S3C9 Downstream transport (Castlenet)20251209.xlsx": "12月17日"
+  },
+  "CCBP": {
+    "S3C2 Capital goods (CCBP)_20251215.XLSX": "12月17日"
+  },
+  "CCBR": {
+    "S3C12 End-of-life treatment of sold products (CCBR)_20251216.xlsx": "12月17日",
+    "S3C2 Capital goods (CCBR).xlsx": "12月17日",
+    "S3C3 Fuel- and Energy-Related (CCBR)_20251216.xlsx": "12月17日",
+    "S3C4 Upstream transport (CCBR)_20251216.xlsx": "12月17日",
+    "S3C5 Waste Generated in Operations (CCBR)_20251216.xlsx": "12月17日",
+    "S3C6 Business travel (CCBR)_20251216.xlsx": "12月17日",
+    "S3C7 Employee commuting (CCBR)_20251216.xlsx": "12月17日"
+  },
+  "CCMX": {
+    "S3C7 Employee commuting (CCMX)_20251223.xlsx": "11:36 PM 星期一"
+  },
+  "CCSD": {
+    "S3C13 Downstream leased assets (CCSD)_20251223.xlsx": "11:42 PM 星期一",
+    "S3C3 Fuel- and Energy-Related (CCSD)_20251223.xlsx": "11:42 PM 星期一",
+    "S3C5 Waste Generated in Operations (CCSD)_20251223.xlsx": "11:42 PM 星期一",
+    "S3C7-Employee Commuting Emissions (CCSD)_20251223.xlsx": "11:42 PM 星期一",
+    "S3C8 Upstream leased assets (CCSD)_20251223.xlsx": "11:42 PM 星期一"
+  },
+  "CCSZ": {
+    "S3C13 下游資產租賃 (CCSZ)_20251210.xlsx": "12月17日",
+    "S3C3 燃料及能源相關活動 (CCSZ)_20251218.xlsx": "12月18日",
+    "S3C5 營運廢棄物處置 (CCSZ)_20251218.xlsx": "12月18日",
+    "S3C6 商務旅行 (CCSZ)_20251210.xlsx": "12月18日",
+    "S3C7 員工通勤 (CCSZ)_20251210.xlsx": "12月17日",
+    "To-do list (CCSZ)_20251219.xlsx": "11:16 PM 星期二"
+  },
+  "CPMA": {
+    "S3C3 Fuel- and Energy-Related (CPMA)_20151218.xlsx": "12月18日",
+    "S3C5 Waste Generated in Operations (CPMA)_20151218.xlsx": "12月18日",
+    "S3C6 Business travel (CPMA)_20151218.xlsx": "12月18日",
+    "S3C7 Employee commuting (CPMA)_20151218.xlsx": "12月18日"
+  },
+  "CPMY": {
+    "S3C2 Capital goods (CPMY)_202512112.xlsx": "12月17日",
+    "S3C3 Fuel- and Energy-Related (CPMY)_20251212.xlsx": "12月17日",
+    "S3C5 Waste Generated in Operations (CPMY)_20251212.xlsx": "12月17日",
+    "S3C6 Business travel (CPMY)_20251215.xlsx": "12月17日",
+    "S3C7 Employee commuting (CPMY)_20251215.xlsx": "12月17日",
+    "S3C8 Upstream leased assets (CPMY)_20251212.xlsx": "12月17日"
+  },
+  "CPPE": {},
+  "CPPH": {},
+  "CPSG": {
+    "S3C3 Fuel- and Energy-Related (CPSG)_20251215.xlsx": "12月17日",
+    "S3C5 Waste disposal daily weight Sep 2025- Nov 2025 (CPSG)_20251215.xlsx": "12月17日",
+    "S3C6 Business travel (CPSG)_20251215.xlsx": "12月17日",
+    "S3C7 Employee commuting (CPSG)_20251215.xlsx": "12月17日"
+  },
+  "CPTH": {
+    "S3C3 Fuel- and Energy-Related (CPTH)_20251224.xlsx": "12:36 AM 星期三",
+    "S3C5 Waste Generated in Operations (CPTH)_20251224.xlsx": "12:36 AM 星期三",
+    "S3C6 Business travel (CPTH)_20251224.xlsx": "12:36 AM 星期三",
+    "S3C7 Employee commuting (CPTH)_20251224.xlsx": "12:36 AM 星期三"
+  },
+  "Crownpo": {
+    "S3C1 Purchased goods and services (Crownpo)_20251216.xlsx": "12月17日",
+    "S3C2 Capital goods (Crownpo)_20251216.xlsx": "12月17日",
+    "S3C3 Fuel- and Energy-Related (Crownpo)_20251216.xlsx": "12月17日",
+    "S3C4 Upstream transport (Crownpo)_20251216.xlsx": "12月17日",
+    "S3C5 Waste Generated in Operations (Crownpo)_20251216.xlsx": "12月17日",
+    "S3C6 Business travel (Crownpo)_20251216.xlsx": "12月17日",
+    "S3C7 Employee commuting (Crownpo)_20251216.xlsx": "12月17日",
+    "S3C9 Downstream transport (Crownpo)_20251216.xlsx": "12月17日"
+  },
+  "FPIP": {
+    "C3,5,6,7 (FPIP)_20251223.xlsx": "1:22 AM 星期二"
+  },
+  "HNI": {
+    "S3C1 Purchased goods and services (HNI)_20251212.xlsx": "12月17日",
+    "S3C11 Use of sold products (HNI)_20251210.xlsx": "12月17日",
+    "S3C12 End-of-life treatment of sold products (HNI)_20251210.xlsx": "12月17日",
+    "S3C2 Capital goods (HNI)_20251212.xlsx": "12月17日",
+    "S3C3 Fuel- and Energy-Related (HNI)_20251212.xlsx": "12月17日",
+    "S3C4 Upstream transport (HNI)_20251212.xlsx": "12月17日",
+    "S3C5 Waste Generated in Operations (HNI)_20251212.xlsx": "12月17日",
+    "S3C6 Business travel (HNI)_20251215.xlsx": "12月17日",
+    "S3C7 Employee commuting (HNI)_251215.xlsx": "12月17日",
+    "S3C8 Upstream leased assets (HNI)_20251215.xlsx": "12月17日",
+    "S3C9 Downstream transport (HNI)_20251212.xlsx": "12月17日"
+  },
+  "HQ": {
+    "S3C1Purchased Services (Other Services for Company Operation)": "12月18日",
+    "S3C13 Downstream leased assets (HQ)_20251205.xlsx": "12月17日",
+    "S3C2 Capital goods (HQ)_20251215.XLSX": "12月17日"
+  },
+  "LIMA": {
+    "C3,5,6,7 (LIMA)_20251223.xlsx": "1:37 AM 星期二"
+  },
+  "LIZ": {
+    "S3C1 Purchased goods and services (LIZ)_20251216.xlsx": "12月17日",
+    "S3C10 Processing of sold products (LIZ)_20251216.xlsx": "12月17日",
+    "S3C11 Use of sold products (LIZ)_20251216.xlsx": "12月17日",
+    "S3C12 End-of-life treatment of sold products (LIZ)_20251216.xlsx": "12月17日",
+    "S3C15 Investments (LIZ)_20251216.xlsx": "12月17日",
+    "S3C2 Capital goods( LIZ)_20251216.xlsx": "12月17日",
+    "S3C3 Fuel- and Energy-Related (LIZ)_20251216.xlsx": "12月17日",
+    "S3C5 Waste Generated in Operations (LIZ)_20251216.xlsx": "12月17日",
+    "S3C6 Business travel (LIZ)_20251216.xlsx": "12月17日",
+    "S3C7 Employee commuting (LIZ)_20251216.xlsx": "12月17日"
+  },
+  "MAH": {
+    "S3C5 Waste Generated in Operations (MAH)_20251223.xlsx": "9:43 PM 星期一",
+    "S3C6 Business travel (MAH)_20251223.xlsx": "9:43 PM 星期一",
+    "S3C7 Employee commuting (MAH)_20251223.xlsx": "9:43 PM 星期一"
+  },
+  "PET 1": {
+    "S3C3 Fuel- and Energy-Related (PET1)_20251222.xlsx": "1:42 AM 星期二",
+    "S3C5 Waste Generated in Operations (PET1)_20251222.xlsx": "1:42 AM 星期二",
+    "S3C6 Business travel (PET1)_20251222.xlsx": "1:42 AM 星期二",
+    "S3C7 Employee commuting (PET1)_20251222.xlsx": "1:42 AM 星期二"
+  },
+  "PET 3": {}
+}
