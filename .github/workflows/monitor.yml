@@ -1,0 +1,54 @@
+name: Monitor Kinpo Scope3
+
+on:
+  schedule:
+    # 每小時執行一次（GitHub Actions 使用 UTC 時間）
+    - cron: '0 * * * *'
+  workflow_dispatch:  # 允許手動觸發
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Install ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Download previous data
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: folder-data
+          path: .
+
+      - name: Run monitor script
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          SHAREPOINT_EMAIL: ${{ secrets.SHAREPOINT_EMAIL }}
+          SHAREPOINT_PASSWORD: ${{ secrets.SHAREPOINT_PASSWORD }}
+        run: |
+          python monitor.py
+
+      - name: Upload current data
+        uses: actions/upload-artifact@v4
+        with:
+          name: folder-data
+          path: folder_data.json
+          retention-days: 90
