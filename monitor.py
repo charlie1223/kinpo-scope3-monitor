@@ -119,9 +119,17 @@ def get_items_from_page(driver):
             except:
                 pass
 
+            # 取得修改者
+            modified_by = ""
+            try:
+                modifier_element = row.find_element(By.CSS_SELECTOR, "[data-automationid='field-Editor']")
+                modified_by = modifier_element.text.strip()
+            except:
+                pass
+
             # 跳過表頭
             if name and name != "名稱":
-                items[name] = modified_date
+                items[name] = {"date": modified_date, "by": modified_by}
         except:
             continue
 
@@ -308,14 +316,20 @@ def check_for_updates():
         new_files = []
         modified_files = []
 
-        for file_name, file_date in files.items():
+        for file_name, file_info in files.items():
             if file_name in previous_files:
-                if previous_files[file_name] != file_date:
-                    modified_files.append(file_name)
+                prev_info = previous_files[file_name]
+                # 相容舊格式（純字串）和新格式（dict）
+                prev_date = prev_info.get("date", prev_info) if isinstance(prev_info, dict) else prev_info
+                curr_date = file_info.get("date", file_info) if isinstance(file_info, dict) else file_info
+                if prev_date != curr_date:
+                    modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
+                    modified_files.append({"name": file_name, "by": modifier})
             else:
                 # 只有當之前有記錄時，才通知新檔案
                 if previous_data:
-                    new_files.append(file_name)
+                    modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
+                    new_files.append({"name": file_name, "by": modifier})
 
         # 組合訊息
         if new_files or modified_files:
@@ -323,9 +337,13 @@ def check_for_updates():
             details = []
 
             if new_files:
-                details.append(f"  🆕 新增: {', '.join(new_files)}")
+                for f in new_files:
+                    by_text = f" (by {f['by']})" if f['by'] else ""
+                    details.append(f"  🆕 新增: {f['name']}{by_text}")
             if modified_files:
-                details.append(f"  ✏️ 修改: {', '.join(modified_files)}")
+                for f in modified_files:
+                    by_text = f" (by {f['by']})" if f['by'] else ""
+                    details.append(f"  ✏️ 修改: {f['name']}{by_text}")
 
             updates.append(folder_msg + "\n" + "\n".join(details))
 
