@@ -223,17 +223,23 @@ def send_teams_message(message):
         print(f"發送 Teams 訊息時發生錯誤: {e}")
 
 
-def send_teams_message_with_mention(message):
-    """發送 Teams 訊息並 @ Joy 和 Noah"""
+def send_teams_message_with_mention(message, exclude_names=None):
+    """發送 Teams 訊息並 @ Joy 和 Noah（排除修改者）"""
     if not TEAMS_WEBHOOK_URL:
         print("No Teams webhook URL configured")
         return
 
+    if exclude_names is None:
+        exclude_names = []
+
     # 要 @ 的人員列表
-    people = [
-        {"email": "joy.lu@cfgreen-energy.com", "name": "Joy"},
-        {"email": "noah.lin@cfgreen-energy.com", "name": "Noah"},
+    all_people = [
+        {"email": "joy.lu@cfgreen-energy.com", "name": "Joy", "sharepoint_name": "Joy Lu"},
+        {"email": "noah.lin@cfgreen-energy.com", "name": "Noah", "sharepoint_name": "Noah Lin"},
     ]
+
+    # 過濾掉修改者
+    people = [p for p in all_people if p["sharepoint_name"] not in exclude_names]
 
     # 建立 entities 列表
     entities = []
@@ -271,14 +277,20 @@ def send_teams_message_with_mention(message):
         ]
     }
 
+    # 產生 @ 的文字
+    mention_text = " ".join([f"<at>{p['name']}</at>" for p in people])
+
     try:
         response = requests.post(TEAMS_WEBHOOK_URL, json=payload)
         if response.status_code == 200 or response.status_code == 202:
-            print("Teams 訊息發送成功（已 @ Joy, Noah）")
+            mentioned_names = ", ".join([p['name'] for p in people]) if people else "無"
+            print(f"Teams 訊息發送成功（已 @ {mentioned_names}）")
         else:
             print(f"Teams 訊息發送失敗: {response.status_code} - {response.text}")
     except Exception as e:
         print(f"發送 Teams 訊息時發生錯誤: {e}")
+
+    return mention_text
 
 
 def check_for_updates():
@@ -309,6 +321,7 @@ def check_for_updates():
 
     # 比較差異
     updates = []
+    all_modifiers = set()  # 收集所有修改者
 
     for folder_name, files in current_data.items():
         previous_files = previous_data.get(folder_name, {})
@@ -325,11 +338,15 @@ def check_for_updates():
                 if prev_date != curr_date:
                     modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
                     modified_files.append({"name": file_name, "by": modifier})
+                    if modifier:
+                        all_modifiers.add(modifier)
             else:
                 # 只有當之前有記錄時，才通知新檔案
                 if previous_data:
                     modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
                     new_files.append({"name": file_name, "by": modifier})
+                    if modifier:
+                        all_modifiers.add(modifier)
 
         # 組合訊息
         if new_files or modified_files:
@@ -356,13 +373,27 @@ def check_for_updates():
     # 發送通知
     if updates:
         now = datetime.now().strftime("%Y/%m/%d %H:%M")
+        # 取得要 @ 的人（排除修改者）
+        exclude_list = list(all_modifiers)
+
+        # 產生 @ 文字
+        all_people = [
+            {"name": "Joy", "sharepoint_name": "Joy Lu"},
+            {"name": "Noah", "sharepoint_name": "Noah Lin"},
+        ]
+        people_to_mention = [p for p in all_people if p["sharepoint_name"] not in exclude_list]
+        mention_text = " ".join([f"<at>{p['name']}</at>" for p in people_to_mention])
+
         message = f"🔔 **金寶 Scope3 資料更新通知**\n\n"
-        message += f"<at>Joy</at> <at>Noah</at> 請查看以下更新：\n\n"
+        if mention_text:
+            message += f"{mention_text} 請查看以下更新：\n\n"
+        else:
+            message += "請查看以下更新：\n\n"
         message += f"⏰ 檢查時間：{now}\n\n"
         message += "\n\n".join(updates)
         message += f"\n\n[點此查看資料夾]({BASE_URL}?id={FOLDER_ID})"
 
-        send_teams_message_with_mention(message)
+        send_teams_message_with_mention(message, exclude_names=exclude_list)
         print(f"發現 {len(updates)} 個更新，已發送通知")
     elif not previous_data:
         print("首次執行，建立基準資料（不發送通知）")
