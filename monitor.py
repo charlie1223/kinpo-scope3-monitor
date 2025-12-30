@@ -116,6 +116,29 @@ def get_items_from_page(driver):
             try:
                 date_element = row.find_element(By.CSS_SELECTOR, "[data-automationid='field-Modified']")
                 modified_date = date_element.text.strip()
+                # 將相對時間轉換成絕對日期
+                import re
+                from datetime import datetime, timedelta
+                if "分鐘前" in modified_date or "剛才" in modified_date:
+                    # 幾分鐘前 -> 今天
+                    modified_date = datetime.now().strftime("%Y/%m/%d")
+                elif "小時前" in modified_date:
+                    # 提取小時數，計算實際日期
+                    match = re.search(r'(\d+)\s*小時前', modified_date)
+                    if match:
+                        hours = int(match.group(1))
+                        actual_time = datetime.now() - timedelta(hours=hours)
+                        modified_date = actual_time.strftime("%Y/%m/%d")
+                    else:
+                        modified_date = datetime.now().strftime("%Y/%m/%d")
+                elif "月" in modified_date and "日" in modified_date:
+                    # 12月17日 -> 2025/12/17（加上年份）
+                    match = re.search(r'(\d+)月(\d+)日', modified_date)
+                    if match:
+                        month = int(match.group(1))
+                        day = int(match.group(2))
+                        year = datetime.now().year
+                        modified_date = f"{year}/{month:02d}/{day:02d}"
             except:
                 pass
 
@@ -319,15 +342,11 @@ def check_for_updates():
         print("無法取得資料夾資訊")
         return
 
-    # 比較差異
-    updates = []
-    all_modifiers = set()  # 收集所有修改者
+    # 比較差異 - 按修改者分組
+    updates_by_modifier = {}  # {修改者: [{folder, name, type}]}
 
     for folder_name, files in current_data.items():
         previous_files = previous_data.get(folder_name, {})
-
-        new_files = []
-        modified_files = []
 
         for file_name, file_info in files.items():
             if file_name in previous_files:
@@ -337,64 +356,105 @@ def check_for_updates():
                 curr_date = file_info.get("date", file_info) if isinstance(file_info, dict) else file_info
                 if prev_date != curr_date:
                     modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
-                    modified_files.append({"name": file_name, "by": modifier})
-                    if modifier:
-                        all_modifiers.add(modifier)
+                    modifier = modifier or "未知"
+                    if modifier not in updates_by_modifier:
+                        updates_by_modifier[modifier] = []
+                    updates_by_modifier[modifier].append({
+                        "folder": folder_name,
+                        "name": file_name,
+                        "type": "修改"
+                    })
             else:
                 # 只有當之前有記錄時，才通知新檔案
                 if previous_data:
                     modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
-                    new_files.append({"name": file_name, "by": modifier})
-                    if modifier:
-                        all_modifiers.add(modifier)
-
-        # 組合訊息
-        if new_files or modified_files:
-            folder_msg = f"📁 **{folder_name}**"
-            details = []
-
-            if new_files:
-                for f in new_files:
-                    by_text = f" (by {f['by']})" if f['by'] else ""
-                    details.append(f"  🆕 新增: {f['name']}{by_text}")
-            if modified_files:
-                for f in modified_files:
-                    by_text = f" (by {f['by']})" if f['by'] else ""
-                    details.append(f"  ✏️ 修改: {f['name']}{by_text}")
-
-            updates.append(folder_msg + "\n" + "\n".join(details))
+                    modifier = modifier or "未知"
+                    if modifier not in updates_by_modifier:
+                        updates_by_modifier[modifier] = []
+                    updates_by_modifier[modifier].append({
+                        "folder": folder_name,
+                        "name": file_name,
+                        "type": "新增"
+                    })
 
     # 檢查新增的資料夾
+    new_folders = []
     if previous_data:
         for folder_name in current_data.keys():
             if folder_name not in previous_data:
-                updates.append(f"📁 **{folder_name}** - 🆕 新增資料夾")
+                new_folders.append(folder_name)
 
-    # 發送通知
-    if updates:
+    # 發送通知 - 每個修改者分開發送
+    # 自己人名單（這些人修改時會排除自己）
+    all_people = [
+        {"name": "Joy", "sharepoint_name": "Joy Lu"},
+        {"name": "Noah", "sharepoint_name": "Noah Lin"},
+        # 未來可加入：{"name": "Stacy", "sharepoint_name": "Stacy Hung 洪翠禪"},
+    ]
+
+    # 自己人的 SharePoint 名稱列表
+    our_team_names = [p["sharepoint_name"] for p in all_people]
+
+    notification_count = 0
+    skip_notification = False  # 正常發送通知
+
+    for modifier, changes in updates_by_modifier.items():
         now = datetime.now().strftime("%Y/%m/%d %H:%M")
-        # 取得要 @ 的人（排除修改者）
-        exclude_list = list(all_modifiers)
 
-        # 產生 @ 文字
-        all_people = [
-            {"name": "Joy", "sharepoint_name": "Joy Lu"},
-            {"name": "Noah", "sharepoint_name": "Noah Lin"},
-        ]
-        people_to_mention = [p for p in all_people if p["sharepoint_name"] not in exclude_list]
+        # 只有當修改者是「自己人」時，才排除那個人
+        # 如果是外部人員（如 Stacy），則通知所有人
+        if modifier in our_team_names:
+            people_to_mention = [p for p in all_people if p["sharepoint_name"] != modifier]
+        else:
+            people_to_mention = all_people
+
         mention_text = " ".join([f"<at>{p['name']}</at>" for p in people_to_mention])
+
+        # 按資料夾整理
+        folders_dict = {}
+        for change in changes:
+            folder = change["folder"]
+            if folder not in folders_dict:
+                folders_dict[folder] = []
+            emoji = "🆕" if change["type"] == "新增" else "✏️"
+            folders_dict[folder].append(f"  {emoji} {change['type']}: {change['name']}")
+
+        # 組合訊息
+        updates_text = []
+        for folder, items in folders_dict.items():
+            updates_text.append(f"📁 **{folder}**\n" + "\n".join(items))
 
         message = f"🔔 **金寶 Scope3 資料更新通知**\n\n"
         if mention_text:
-            message += f"{mention_text} 請查看以下更新：\n\n"
+            message += f"{mention_text} 請查看 **{modifier}** 的更新：\n\n"
         else:
-            message += "請查看以下更新：\n\n"
+            message += f"請查看 **{modifier}** 的更新：\n\n"
         message += f"⏰ 檢查時間：{now}\n\n"
-        message += "\n\n".join(updates)
+        message += "\n\n".join(updates_text)
         message += f"\n\n[點此查看資料夾]({BASE_URL}?id={FOLDER_ID})"
 
-        send_teams_message_with_mention(message, exclude_names=exclude_list)
-        print(f"發現 {len(updates)} 個更新，已發送通知")
+        if not skip_notification:
+            send_teams_message_with_mention(message, exclude_names=[modifier])
+            notification_count += 1
+
+    # 新增資料夾通知（這個不排除任何人）
+    if new_folders and not skip_notification:
+        now = datetime.now().strftime("%Y/%m/%d %H:%M")
+        mention_text = " ".join([f"<at>{p['name']}</at>" for p in all_people])
+
+        folders_text = "\n".join([f"📁 **{f}** - 🆕 新增資料夾" for f in new_folders])
+
+        message = f"🔔 **金寶 Scope3 資料更新通知**\n\n"
+        message += f"{mention_text} 請查看以下新增資料夾：\n\n"
+        message += f"⏰ 檢查時間：{now}\n\n"
+        message += folders_text
+        message += f"\n\n[點此查看資料夾]({BASE_URL}?id={FOLDER_ID})"
+
+        send_teams_message_with_mention(message)
+        notification_count += 1
+
+    if notification_count > 0:
+        print(f"發現更新，已發送 {notification_count} 則通知")
     elif not previous_data:
         print("首次執行，建立基準資料（不發送通知）")
     else:
