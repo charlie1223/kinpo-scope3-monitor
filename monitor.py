@@ -119,6 +119,13 @@ def get_items_from_page(driver):
                 # 將相對時間轉換成絕對日期
                 import re
                 from datetime import datetime, timedelta
+
+                # 星期對應的天數（0=星期一, 6=星期日）
+                weekday_map = {
+                    "星期一": 0, "星期二": 1, "星期三": 2, "星期四": 3,
+                    "星期五": 4, "星期六": 5, "星期日": 6
+                }
+
                 if "分鐘前" in modified_date or "剛才" in modified_date:
                     # 幾分鐘前 -> 今天
                     modified_date = datetime.now().strftime("%Y/%m/%d")
@@ -131,8 +138,20 @@ def get_items_from_page(driver):
                         modified_date = actual_time.strftime("%Y/%m/%d")
                     else:
                         modified_date = datetime.now().strftime("%Y/%m/%d")
+                elif "星期" in modified_date:
+                    # 「6:05 AM 星期一」-> 計算那個星期幾是哪一天
+                    for weekday_name, weekday_num in weekday_map.items():
+                        if weekday_name in modified_date:
+                            today = datetime.now()
+                            today_weekday = today.weekday()
+                            days_diff = (today_weekday - weekday_num) % 7
+                            if days_diff == 0 and "今天" not in modified_date:
+                                days_diff = 0  # 就是今天
+                            actual_date = today - timedelta(days=days_diff)
+                            modified_date = actual_date.strftime("%Y/%m/%d")
+                            break
                 elif "月" in modified_date and "日" in modified_date:
-                    # 12月17日 -> 2025/12/17（加上年份）
+                    # 12月17日 或 25年12月17日 -> 2025/12/17
                     match = re.search(r'(\d+)月(\d+)日', modified_date)
                     if match:
                         month = int(match.group(1))
