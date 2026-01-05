@@ -129,6 +129,15 @@ def get_items_from_page(driver):
                 if "分鐘前" in modified_date or "剛才" in modified_date:
                     # 幾分鐘前 -> 今天
                     modified_date = datetime.now().strftime("%Y/%m/%d")
+                elif "天前" in modified_date:
+                    # 「6 天前」-> 計算實際日期
+                    match = re.search(r'(\d+)\s*天前', modified_date)
+                    if match:
+                        days = int(match.group(1))
+                        actual_date = datetime.now() - timedelta(days=days)
+                        modified_date = actual_date.strftime("%Y/%m/%d")
+                    else:
+                        modified_date = datetime.now().strftime("%Y/%m/%d")
                 elif "小時前" in modified_date:
                     # 提取小時數，計算實際日期
                     match = re.search(r'(\d+)\s*小時前', modified_date)
@@ -408,7 +417,6 @@ def check_for_updates():
     all_people = [
         {"name": "Joy", "sharepoint_name": "Joy Lu"},
         {"name": "Noah", "sharepoint_name": "Noah Lin"},
-        # 未來可加入：{"name": "Stacy", "sharepoint_name": "Stacy Hung 洪翠禪"},
     ]
 
     # 自己人的 SharePoint 名稱列表
