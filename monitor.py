@@ -1,7 +1,8 @@
 import requests
 import json
 import os
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # 取得腳本所在目錄
@@ -77,162 +78,397 @@ def login_microsoft(driver):
         pass
 
 
-def get_items_from_page(driver):
-    """從目前頁面取得所有項目（資料夾或檔案）"""
+def parse_relative_time(time_str):
+    """將相對時間轉換成 datetime 物件"""
+    now = datetime.now()
+
+    if "剛才" in time_str:
+        return now
+
+    # N 分鐘前
+    match = re.search(r'(\d+)\s*分鐘前', time_str)
+    if match:
+        minutes = int(match.group(1))
+        return now - timedelta(minutes=minutes)
+
+    # N 小時前
+    match = re.search(r'(\d+)\s*小時前', time_str)
+    if match:
+        hours = int(match.group(1))
+        return now - timedelta(hours=hours)
+
+    # N 天前
+    match = re.search(r'(\d+)\s*天前', time_str)
+    if match:
+        days = int(match.group(1))
+        return now - timedelta(days=days)
+
+    # 昨天 HH:MM AM/PM
+    if "昨天" in time_str:
+        yesterday = now - timedelta(days=1)
+        # 嘗試解析時間部分
+        time_match = re.search(r'(\d+):(\d+)\s*(AM|PM)?', time_str)
+        if time_match:
+            hour = int(time_match.group(1))
+            minute = int(time_match.group(2))
+            ampm = time_match.group(3)
+            if ampm == "PM" and hour != 12:
+                hour += 12
+            elif ampm == "AM" and hour == 12:
+                hour = 0
+            return yesterday.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        return yesterday
+
+    # 星期X 格式
+    weekday_map = {
+        "星期一": 0, "星期二": 1, "星期三": 2, "星期四": 3,
+        "星期五": 4, "星期六": 5, "星期日": 6
+    }
+    for weekday_name, weekday_num in weekday_map.items():
+        if weekday_name in time_str:
+            today_weekday = now.weekday()
+            days_diff = (today_weekday - weekday_num) % 7
+            if days_diff == 0:
+                days_diff = 7  # 上週同一天
+            return now - timedelta(days=days_diff)
+
+    # MM月DD日 或 YY年MM月DD日 格式
+    match = re.search(r'(?:(\d+)年)?(\d+)月(\d+)日', time_str)
+    if match:
+        year = int(match.group(1)) + 2000 if match.group(1) else now.year
+        month = int(match.group(2))
+        day = int(match.group(3))
+        return datetime(year, month, day)
+
+    # 無法解析，返回 None
+    return None
+
+
+def get_activity_from_panel(driver):
+    """從詳細資料面板取得活動紀錄"""
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     import time
 
-    items = {}
+    activities = []
 
-    # 多等一下讓頁面完全載入
-    time.sleep(5)
-
-    # 找所有資料列
-    try:
-        rows = WebDriverWait(driver, 15).until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "[role='row'][data-automationid^='row-']"))
-        )
-    except:
-        rows = []
-
-    for row in rows:
-        try:
-            # 取得名稱
-            name = ""
-            try:
-                name_element = row.find_element(By.CSS_SELECTOR, "[data-automationid='field-LinkFilename'] span[role='button']")
-                name = name_element.text.strip()
-            except:
-                try:
-                    name_element = row.find_element(By.CSS_SELECTOR, "[data-automationid='field-LinkFilename']")
-                    name = name_element.text.strip()
-                except:
-                    pass
-
-            # 取得修改時間
-            modified_date = ""
-            try:
-                date_element = row.find_element(By.CSS_SELECTOR, "[data-automationid='field-Modified']")
-                modified_date = date_element.text.strip()
-                # 將相對時間轉換成絕對日期
-                import re
-                from datetime import datetime, timedelta
-
-                # 星期對應的天數（0=星期一, 6=星期日）
-                weekday_map = {
-                    "星期一": 0, "星期二": 1, "星期三": 2, "星期四": 3,
-                    "星期五": 4, "星期六": 5, "星期日": 6
-                }
-
-                if "分鐘前" in modified_date or "剛才" in modified_date:
-                    # 幾分鐘前 -> 今天
-                    modified_date = datetime.now().strftime("%Y/%m/%d")
-                elif "天前" in modified_date:
-                    # 「6 天前」-> 計算實際日期
-                    match = re.search(r'(\d+)\s*天前', modified_date)
-                    if match:
-                        days = int(match.group(1))
-                        actual_date = datetime.now() - timedelta(days=days)
-                        modified_date = actual_date.strftime("%Y/%m/%d")
-                    else:
-                        modified_date = datetime.now().strftime("%Y/%m/%d")
-                elif "小時前" in modified_date:
-                    # 提取小時數，計算實際日期
-                    match = re.search(r'(\d+)\s*小時前', modified_date)
-                    if match:
-                        hours = int(match.group(1))
-                        actual_time = datetime.now() - timedelta(hours=hours)
-                        modified_date = actual_time.strftime("%Y/%m/%d")
-                    else:
-                        modified_date = datetime.now().strftime("%Y/%m/%d")
-                elif "星期" in modified_date:
-                    # 「6:05 AM 星期一」-> 計算那個星期幾是哪一天
-                    for weekday_name, weekday_num in weekday_map.items():
-                        if weekday_name in modified_date:
-                            today = datetime.now()
-                            today_weekday = today.weekday()
-                            days_diff = (today_weekday - weekday_num) % 7
-                            if days_diff == 0 and "今天" not in modified_date:
-                                days_diff = 0  # 就是今天
-                            actual_date = today - timedelta(days=days_diff)
-                            modified_date = actual_date.strftime("%Y/%m/%d")
-                            break
-                elif "月" in modified_date and "日" in modified_date:
-                    # 12月17日 或 25年12月17日 -> 2025/12/17
-                    match = re.search(r'(\d+)月(\d+)日', modified_date)
-                    if match:
-                        month = int(match.group(1))
-                        day = int(match.group(2))
-                        year = datetime.now().year
-                        modified_date = f"{year}/{month:02d}/{day:02d}"
-            except:
-                pass
-
-            # 取得修改者
-            modified_by = ""
-            try:
-                modifier_element = row.find_element(By.CSS_SELECTOR, "[data-automationid='field-Editor']")
-                modified_by = modifier_element.text.strip()
-            except:
-                pass
-
-            # 跳過表頭
-            if name and name != "名稱":
-                items[name] = {"date": modified_date, "by": modified_by}
-        except:
-            continue
-
-    return items
-
-
-def get_all_files(driver):
-    """取得所有資料夾及其內部檔案"""
-    import time
-    import urllib.parse
-
-    all_data = {}
-
-    # 先取得主資料夾列表
+    # 開啟主資料夾
     main_url = f"{BASE_URL}?id={FOLDER_ID}"
     driver.get(main_url)
     time.sleep(8)
 
-    folders = get_items_from_page(driver)
-    print(f"找到 {len(folders)} 個資料夾")
+    # 點擊「詳細資料」按鈕 - 嘗試多種選擇器
+    detail_clicked = False
 
-    # 過濾掉檔案（只保留資料夾）
-    folder_names = [name for name in folders.keys() if not name.endswith(('.xlsx', '.xls', '.pdf', '.docx', '.doc', '.pptx', '.ppt', '.csv', '.txt'))]
+    # 方法1: data-automationid
+    try:
+        detail_button = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-automationid='detailsPane']"))
+        )
+        detail_button.click()
+        detail_clicked = True
+        print("使用 data-automationid 點擊成功")
+    except:
+        pass
 
-    # 進入每個資料夾取得檔案
-    for folder_name in folder_names:
-        print(f"  檢查資料夾: {folder_name}")
+    # 方法2: 包含「詳細資料」文字的按鈕
+    if not detail_clicked:
+        try:
+            detail_button = driver.find_element(By.XPATH, "//button[contains(., '詳細資料')]")
+            detail_button.click()
+            detail_clicked = True
+            print("使用 XPATH 文字匹配點擊成功")
+        except:
+            pass
 
-        folder_url = f"{BASE_URL}?id={FOLDER_ID}%2F{urllib.parse.quote(folder_name)}"
-        driver.get(folder_url)
-        time.sleep(6)
+    # 方法3: aria-label
+    if not detail_clicked:
+        try:
+            detail_button = driver.find_element(By.XPATH, "//button[contains(@aria-label, '詳細資料') or contains(@aria-label, 'Details')]")
+            detail_button.click()
+            detail_clicked = True
+            print("使用 aria-label 點擊成功")
+        except:
+            pass
 
-        files = get_items_from_page(driver)
-        all_data[folder_name] = files
-        print(f"    找到 {len(files)} 個檔案")
+    # 方法4: i 標籤圖示按鈕
+    if not detail_clicked:
+        try:
+            detail_button = driver.find_element(By.CSS_SELECTOR, "button[name='Details pane'], button[name='詳細資料窗格']")
+            detail_button.click()
+            detail_clicked = True
+            print("使用 name 屬性點擊成功")
+        except:
+            pass
 
-    return all_data
+    # 方法5: 使用鍵盤快捷鍵 Alt+D
+    if not detail_clicked:
+        try:
+            from selenium.webdriver.common.keys import Keys
+            from selenium.webdriver.common.action_chains import ActionChains
+            actions = ActionChains(driver)
+            actions.key_down(Keys.ALT).send_keys('d').key_up(Keys.ALT).perform()
+            detail_clicked = True
+            print("使用鍵盤快捷鍵")
+        except:
+            pass
+
+    if not detail_clicked:
+        print("無法開啟詳細資料面板，嘗試直接從頁面讀取活動")
+
+    # 等待面板載入完成
+    time.sleep(5)
+
+    # 嘗試滾動面板以載入更多內容
+    try:
+        driver.execute_script("""
+            var panels = document.querySelectorAll('[class*="DetailPane"], [class*="detailPane"], aside, [role="complementary"]');
+            panels.forEach(function(panel) {
+                panel.scrollTop = panel.scrollHeight;
+            });
+        """)
+        time.sleep(2)
+    except:
+        pass
+
+    # 截圖以便除錯
+    screenshot_path = SCRIPT_DIR / "debug_screenshot.png"
+    driver.save_screenshot(str(screenshot_path))
+    print(f"已儲存截圖到 {screenshot_path}")
+
+    # 列印頁面 HTML 的一部分以便除錯
+    try:
+        page_source = driver.page_source
+        if "活動" in page_source:
+            print("頁面中有「活動」文字")
+        if "Activity" in page_source:
+            print("頁面中有「Activity」文字")
+        if "已編輯" in page_source:
+            print("頁面原始碼中有「已編輯」文字")
+        else:
+            print("頁面原始碼中沒有「已編輯」文字")
+
+        # 檢查 iframe 並切換到包含活動的 iframe
+        iframes = driver.find_elements(By.TAG_NAME, "iframe")
+        print(f"找到 {len(iframes)} 個 iframe")
+        for i, iframe in enumerate(iframes):
+            try:
+                driver.switch_to.frame(iframe)
+                iframe_source = driver.page_source
+                if "已編輯" in iframe_source:
+                    print(f"iframe {i} 中有「已編輯」文字，保持在此 iframe")
+                    # 不切回 default_content，讓後續程式碼在這個 iframe 中執行
+                    break
+                driver.switch_to.default_content()
+            except:
+                driver.switch_to.default_content()
+
+    except Exception as e:
+        print(f"除錯資訊取得失敗: {e}")
+
+    # 等待活動面板載入
+    time.sleep(3)
+
+    # 嘗試找到活動區域
+    try:
+        # 從截圖看，活動項目在右側面板中，每個活動有圖示、文字和時間
+        # 嘗試找到包含活動的容器
+
+        # 方法1: 找包含「已編輯」或「中建立」的元素
+        activity_elements = driver.find_elements(By.XPATH, "//*[contains(text(), '已編輯') or contains(text(), '中建立')]")
+        print(f"找到 {len(activity_elements)} 個包含活動文字的元素")
+
+        # 取得整個面板的文字內容
+        panel_text = ""
+
+        # 嘗試多種選擇器找面板
+        panel_selectors = [
+            "[role='complementary']",
+            "[class*='DetailPane']",
+            "[class*='detailsPane']",
+            "[class*='od-ItemContent']",
+            "[data-automationid='DetailPane']",
+            "aside",
+        ]
+
+        for selector in panel_selectors:
+            try:
+                panel = driver.find_element(By.CSS_SELECTOR, selector)
+                panel_text = panel.text
+                if panel_text and len(panel_text) > 50:
+                    print(f"使用選擇器 '{selector}' 找到面板，文字長度: {len(panel_text)}")
+                    break
+            except:
+                continue
+
+        # 備用：用 JavaScript 取得右側面板
+        if not panel_text or "已編輯" not in panel_text:
+            try:
+                # 用 JS 找到右側面板 - 遍歷所有元素包括 Shadow DOM
+                js_result = driver.execute_script("""
+                    function getAllText(element) {
+                        var text = '';
+                        if (element.shadowRoot) {
+                            text += getAllText(element.shadowRoot);
+                        }
+                        if (element.innerText) {
+                            text += element.innerText;
+                        }
+                        return text;
+                    }
+
+                    // 嘗試找右側面板的各種可能
+                    var selectors = [
+                        '.od-DetailPane',
+                        '[class*="DetailPane"]',
+                        '[class*="detailPane"]',
+                        '[class*="ItemActivity"]',
+                        '[class*="activityFeed"]',
+                        'aside',
+                        '[role="complementary"]',
+                    ];
+
+                    for (var i = 0; i < selectors.length; i++) {
+                        var elements = document.querySelectorAll(selectors[i]);
+                        for (var j = 0; j < elements.length; j++) {
+                            var text = getAllText(elements[j]);
+                            if (text && (text.includes('已編輯') || text.includes('中建立'))) {
+                                return text;
+                            }
+                        }
+                    }
+
+                    // 最後嘗試：找所有包含活動文字的元素
+                    var all = document.querySelectorAll('*');
+                    for (var i = 0; i < all.length; i++) {
+                        var text = all[i].innerText || '';
+                        if (text.includes('已編輯') && text.includes('小時前') && text.length < 3000) {
+                            return text;
+                        }
+                    }
+
+                    return '';
+                """)
+                if js_result:
+                    panel_text = js_result
+                    print(f"使用 JS 結果，長度: {len(panel_text)}")
+                else:
+                    print("JS 沒有找到包含活動的元素")
+            except Exception as e:
+                print(f"JS 執行失敗: {e}")
+
+        # 印出面板文字前 500 字以便除錯（可移除）
+        # if panel_text:
+        #     print(f"面板文字前 500 字:\n{panel_text[:500]}")
+
+        if panel_text:
+            # 解析面板文字
+            # 格式範例：
+            # 「Noah Lin」已編輯SBTi Net Zreo Member List_20251217 .xlsx
+            # 16 小時前
+            # 「Noah Lin」已在 [CPSG] 中建立「To-do list (CPSG)_20260105.xlsx」
+            # 17 小時前
+
+            lines = panel_text.split('\n')
+
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+
+                # 跳過時間分類標題（昨天、本週、上週等）
+                if line in ["昨天", "今天", "本週", "上週", "活動"]:
+                    i += 1
+                    continue
+
+                # 找到包含「已編輯」或「中建立」或「刪除」的行
+                if "已編輯" in line or "中建立" in line or "刪除" in line:
+                    activity = {
+                        "raw_text": line,
+                        "modifier": "",
+                        "action": "",
+                        "file_name": "",
+                        "folder": "",
+                        "time_str": "",
+                        "time": None
+                    }
+
+                    # 解析修改者和動作
+                    if "已編輯" in line:
+                        # 格式：「Noah Lin」已編輯SBTi Net Zreo Member List_20251217 .xlsx
+                        # 或：您已編輯xxx.xlsx
+                        match = re.search(r'「(.+?)」已編輯(.+)', line)
+                        if match:
+                            activity["modifier"] = match.group(1)
+                            activity["file_name"] = match.group(2).strip()
+                        elif line.startswith("您已編輯"):
+                            activity["modifier"] = "您"
+                            activity["file_name"] = line.replace("您已編輯", "").strip()
+                        activity["action"] = "編輯"
+
+                    elif "中建立" in line:
+                        # 格式：「Noah Lin」已在 [CPSG] 中建立「To-do list (CPSG)_20260105.xlsx」
+                        match = re.search(r'「(.+?)」已在\s*\[(.+?)\]\s*中建立「(.+?)」', line)
+                        if match:
+                            activity["modifier"] = match.group(1)
+                            activity["folder"] = match.group(2)
+                            activity["file_name"] = match.group(3)
+                        elif "您已在" in line:
+                            match = re.search(r'您已在\s*\[(.+?)\]\s*中建立「(.+?)」', line)
+                            if match:
+                                activity["modifier"] = "您"
+                                activity["folder"] = match.group(1)
+                                activity["file_name"] = match.group(2)
+                        activity["action"] = "新增"
+
+                    elif "刪除" in line:
+                        # 格式：「Noah Lin」已從 [FPIP] 刪除「xxx.xlsx」
+                        match = re.search(r'「(.+?)」已從\s*\[(.+?)\]\s*刪除「(.+?)」', line)
+                        if match:
+                            activity["modifier"] = match.group(1)
+                            activity["folder"] = match.group(2)
+                            activity["file_name"] = match.group(3)
+                        activity["action"] = "刪除"
+
+                    # 往下找時間（通常是下一行）
+                    if i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        # 時間格式：16 小時前、昨天 1:48 AM、3 天前等
+                        if "前" in next_line or "昨天" in next_line or "AM" in next_line or "PM" in next_line:
+                            activity["time_str"] = next_line
+                            activity["time"] = parse_relative_time(next_line)
+                            i += 1  # 跳過時間行
+
+                    # 只保留有效的活動（有修改者和檔案名稱）
+                    if activity["modifier"] and activity["file_name"]:
+                        activities.append(activity)
+                        print(f"  解析活動: {activity['modifier']} {activity['action']} {activity['file_name']} ({activity['time_str']})")
+
+                i += 1
+
+        print(f"找到 {len(activities)} 個活動項目")
+
+    except Exception as e:
+        print(f"讀取活動紀錄時發生錯誤: {e}")
+        import traceback
+        traceback.print_exc()
+
+    return activities
 
 
 def load_previous_data():
     """載入上次的資料"""
     try:
-        data_file = SCRIPT_DIR / "folder_data.json"
+        data_file = SCRIPT_DIR / "activity_data.json"
         with open(data_file, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
-        return {}
+        return {"last_check": None, "activities": []}
 
 
 def save_current_data(data):
     """儲存目前的資料"""
-    data_file = SCRIPT_DIR / "folder_data.json"
+    data_file = SCRIPT_DIR / "activity_data.json"
     with open(data_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -328,9 +564,6 @@ def send_teams_message_with_mention(message, exclude_names=None):
         ]
     }
 
-    # 產生 @ 的文字
-    mention_text = " ".join([f"<at>{p['name']}</at>" for p in people])
-
     try:
         response = requests.post(TEAMS_WEBHOOK_URL, json=payload)
         if response.status_code == 200 or response.status_code == 202:
@@ -340,8 +573,6 @@ def send_teams_message_with_mention(message, exclude_names=None):
             print(f"Teams 訊息發送失敗: {response.status_code} - {response.text}")
     except Exception as e:
         print(f"發送 Teams 訊息時發生錯誤: {e}")
-
-    return mention_text
 
 
 def check_for_updates():
@@ -354,82 +585,64 @@ def check_for_updates():
         print("登入中...")
         login_microsoft(driver)
 
-        print("掃描所有資料夾...")
-        current_data = get_all_files(driver)
+        print("讀取活動紀錄...")
+        activities = get_activity_from_panel(driver)
+        print(f"取得 {len(activities)} 個活動")
+
+        # 印出活動內容以便除錯
+        for act in activities:
+            print(f"  - {act.get('modifier', '?')} {act.get('action', '?')}: {act.get('file_name', '?')} ({act.get('time_str', '?')})")
 
     except Exception as e:
         print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
         driver.quit()
         return
     finally:
         driver.quit()
 
+    # 載入上次資料
     previous_data = load_previous_data()
+    last_check_str = previous_data.get("last_check")
 
-    if not current_data:
-        print("無法取得資料夾資訊")
-        return
+    if last_check_str:
+        last_check = datetime.fromisoformat(last_check_str)
+    else:
+        last_check = None
 
-    # 比較差異 - 按修改者分組
-    updates_by_modifier = {}  # {修改者: [{folder, name, type}]}
+    # 過濾出新的活動（上次檢查之後的）
+    new_activities = []
+    for act in activities:
+        act_time = act.get("time")
+        if act_time and last_check:
+            if act_time > last_check:
+                new_activities.append(act)
+        elif not last_check:
+            # 首次執行，不通知
+            pass
 
-    for folder_name, files in current_data.items():
-        previous_files = previous_data.get(folder_name, {})
+    # 按修改者分組
+    updates_by_modifier = {}
+    for act in new_activities:
+        modifier = act.get("modifier", "未知")
+        if modifier not in updates_by_modifier:
+            updates_by_modifier[modifier] = []
+        updates_by_modifier[modifier].append(act)
 
-        for file_name, file_info in files.items():
-            if file_name in previous_files:
-                prev_info = previous_files[file_name]
-                # 相容舊格式（純字串）和新格式（dict）
-                prev_date = prev_info.get("date", prev_info) if isinstance(prev_info, dict) else prev_info
-                curr_date = file_info.get("date", file_info) if isinstance(file_info, dict) else file_info
-                if prev_date != curr_date:
-                    modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
-                    modifier = modifier or "未知"
-                    if modifier not in updates_by_modifier:
-                        updates_by_modifier[modifier] = []
-                    updates_by_modifier[modifier].append({
-                        "folder": folder_name,
-                        "name": file_name,
-                        "type": "修改"
-                    })
-            else:
-                # 只有當之前有記錄時，才通知新檔案
-                if previous_data:
-                    modifier = file_info.get("by", "") if isinstance(file_info, dict) else ""
-                    modifier = modifier or "未知"
-                    if modifier not in updates_by_modifier:
-                        updates_by_modifier[modifier] = []
-                    updates_by_modifier[modifier].append({
-                        "folder": folder_name,
-                        "name": file_name,
-                        "type": "新增"
-                    })
-
-    # 檢查新增的資料夾
-    new_folders = []
-    if previous_data:
-        for folder_name in current_data.keys():
-            if folder_name not in previous_data:
-                new_folders.append(folder_name)
-
-    # 發送通知 - 每個修改者分開發送
-    # 自己人名單（這些人修改時會排除自己）
+    # 發送通知
     all_people = [
         {"name": "Joy", "sharepoint_name": "Joy Lu"},
         {"name": "Noah", "sharepoint_name": "Noah Lin"},
     ]
-
-    # 自己人的 SharePoint 名稱列表
     our_team_names = [p["sharepoint_name"] for p in all_people]
 
     notification_count = 0
-    skip_notification = False  # 正常發送通知
 
     for modifier, changes in updates_by_modifier.items():
         now = datetime.now().strftime("%Y/%m/%d %H:%M")
 
-        # 只有當修改者是「自己人」時，才排除那個人
-        # 如果是外部人員（如 Stacy），則通知所有人
+        # 排除修改者本人
         if modifier in our_team_names:
             people_to_mention = [p for p in all_people if p["sharepoint_name"] != modifier]
         else:
@@ -437,19 +650,17 @@ def check_for_updates():
 
         mention_text = " ".join([f"<at>{p['name']}</at>" for p in people_to_mention])
 
-        # 按資料夾整理
-        folders_dict = {}
-        for change in changes:
-            folder = change["folder"]
-            if folder not in folders_dict:
-                folders_dict[folder] = []
-            emoji = "🆕" if change["type"] == "新增" else "✏️"
-            folders_dict[folder].append(f"  {emoji} {change['type']}: {change['name']}")
-
         # 組合訊息
-        updates_text = []
-        for folder, items in folders_dict.items():
-            updates_text.append(f"📁 **{folder}**\n" + "\n".join(items))
+        changes_text = []
+        for change in changes:
+            action = change.get("action", "更新")
+            file_name = change.get("file_name", "未知檔案")
+            folder = change.get("folder", "")
+            emoji = "🆕" if action == "新增" else "✏️"
+            if folder:
+                changes_text.append(f"  {emoji} {action}: [{folder}] {file_name}")
+            else:
+                changes_text.append(f"  {emoji} {action}: {file_name}")
 
         message = f"🔔 **金寶 Scope3 資料更新通知**\n\n"
         if mention_text:
@@ -457,37 +668,33 @@ def check_for_updates():
         else:
             message += f"請查看 **{modifier}** 的更新：\n\n"
         message += f"⏰ 檢查時間：{now}\n\n"
-        message += "\n\n".join(updates_text)
+        message += "\n".join(changes_text)
         message += f"\n\n[點此查看資料夾]({BASE_URL}?id={FOLDER_ID})"
 
-        if not skip_notification:
-            send_teams_message_with_mention(message, exclude_names=[modifier])
-            notification_count += 1
-
-    # 新增資料夾通知（這個不排除任何人）
-    if new_folders and not skip_notification:
-        now = datetime.now().strftime("%Y/%m/%d %H:%M")
-        mention_text = " ".join([f"<at>{p['name']}</at>" for p in all_people])
-
-        folders_text = "\n".join([f"📁 **{f}** - 🆕 新增資料夾" for f in new_folders])
-
-        message = f"🔔 **金寶 Scope3 資料更新通知**\n\n"
-        message += f"{mention_text} 請查看以下新增資料夾：\n\n"
-        message += f"⏰ 檢查時間：{now}\n\n"
-        message += folders_text
-        message += f"\n\n[點此查看資料夾]({BASE_URL}?id={FOLDER_ID})"
-
-        send_teams_message_with_mention(message)
+        send_teams_message_with_mention(message, exclude_names=[modifier])
         notification_count += 1
 
     if notification_count > 0:
         print(f"發現更新，已發送 {notification_count} 則通知")
-    elif not previous_data:
+    elif not last_check:
         print("首次執行，建立基準資料（不發送通知）")
     else:
         print("沒有發現更新")
 
     # 儲存目前資料
+    current_data = {
+        "last_check": datetime.now().isoformat(),
+        "activities": [
+            {
+                "modifier": act.get("modifier", ""),
+                "action": act.get("action", ""),
+                "file_name": act.get("file_name", ""),
+                "folder": act.get("folder", ""),
+                "time_str": act.get("time_str", "")
+            }
+            for act in activities
+        ]
+    }
     save_current_data(current_data)
     print("完成檢查")
 
