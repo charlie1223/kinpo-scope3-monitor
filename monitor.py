@@ -394,6 +394,7 @@ def get_activity_from_panel(driver):
                     }
 
                     # 解析修改者和動作
+                    # 注意：「您」代表當前登入的使用者（Joy Lu）
                     if "已編輯" in line:
                         # 格式：「Noah Lin」已編輯SBTi Net Zreo Member List_20251217 .xlsx
                         # 或：您已編輯xxx.xlsx
@@ -402,7 +403,7 @@ def get_activity_from_panel(driver):
                             activity["modifier"] = match.group(1)
                             activity["file_name"] = match.group(2).strip()
                         elif line.startswith("您已編輯"):
-                            activity["modifier"] = "您"
+                            activity["modifier"] = "Joy Lu"  # 「您」= Joy Lu
                             activity["file_name"] = line.replace("您已編輯", "").strip()
                         activity["action"] = "編輯"
 
@@ -416,7 +417,7 @@ def get_activity_from_panel(driver):
                         elif "您已在" in line:
                             match = re.search(r'您已在\s*\[(.+?)\]\s*中建立「(.+?)」', line)
                             if match:
-                                activity["modifier"] = "您"
+                                activity["modifier"] = "Joy Lu"  # 「您」= Joy Lu
                                 activity["folder"] = match.group(1)
                                 activity["file_name"] = match.group(2)
                         activity["action"] = "新增"
@@ -428,6 +429,12 @@ def get_activity_from_panel(driver):
                             activity["modifier"] = match.group(1)
                             activity["folder"] = match.group(2)
                             activity["file_name"] = match.group(3)
+                        elif "您已從" in line:
+                            match = re.search(r'您已從\s*\[(.+?)\]\s*刪除「(.+?)」', line)
+                            if match:
+                                activity["modifier"] = "Joy Lu"  # 「您」= Joy Lu
+                                activity["folder"] = match.group(1)
+                                activity["file_name"] = match.group(2)
                         activity["action"] = "刪除"
 
                     # 往下找時間（通常是下一行）
