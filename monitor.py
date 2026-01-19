@@ -642,18 +642,18 @@ def check_for_updates():
         {"name": "Joy", "sharepoint_name": "Joy Lu"},
         {"name": "Noah", "sharepoint_name": "Noah Lin"},
     ]
-    our_team_names = [p["sharepoint_name"] for p in all_people]
 
     notification_count = 0
 
     for modifier, changes in updates_by_modifier.items():
+        # 如果是 Joy 自己的更新，完全跳過不發送通知
+        if modifier == "Joy Lu":
+            continue
+
         now = datetime.now().strftime("%Y/%m/%d %H:%M")
 
-        # 排除修改者本人
-        if modifier in our_team_names:
-            people_to_mention = [p for p in all_people if p["sharepoint_name"] != modifier]
-        else:
-            people_to_mention = all_people
+        # 只通知 Joy（Joy 只接收通知，不發送通知給別人）
+        people_to_mention = [p for p in all_people if p["sharepoint_name"] == "Joy Lu"]
 
         mention_text = " ".join([f"<at>{p['name']}</at>" for p in people_to_mention])
 

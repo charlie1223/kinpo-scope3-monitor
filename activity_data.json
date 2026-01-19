@@ -1,26 +1,33 @@
 {
-  "last_check": "2026-01-19T14:25:44.080438",
+  "last_check": "2026-01-19T15:26:31.189587",
   "activities": [
     {
-      "modifier": "您",
+      "modifier": "Joy Lu",
       "action": "編輯",
       "file_name": "To-do list (CCBR)_20260116.xlsx",
       "folder": "",
-      "time_str": "2 分鐘前"
+      "time_str": "47 分鐘前"
+    },
+    {
+      "modifier": "Joy Lu",
+      "action": "編輯",
+      "file_name": "S3C4 Upstream transport (CCBR)_20251216.xlsx",
+      "folder": "",
+      "time_str": "49 分鐘前"
     },
     {
       "modifier": "Noah Lin",
       "action": "編輯",
       "file_name": "S3C1 Purchased goods and services (LI...xlsx",
       "folder": "",
-      "time_str": "5 小時前"
+      "time_str": "6 小時前"
     },
     {
       "modifier": "Noah Lin",
       "action": "編輯",
       "file_name": "To-do list (HNI)_202601018.xlsx",
       "folder": "",
-      "time_str": "21 小時前"
+      "time_str": "22 小時前"
     },
     {
       "modifier": "Noah Lin",
@@ -125,20 +132,6 @@
       "action": "刪除",
       "file_name": "To-do list (CCBR)_20260106.xlsx",
       "folder": "CCBR",
-      "time_str": "3 天前"
-    },
-    {
-      "modifier": "Stacy Hung 洪翠禪",
-      "action": "新增",
-      "file_name": "To-do list (CPSG)_20260116.xlsx",
-      "folder": "CPSG",
-      "time_str": "3 天前"
-    },
-    {
-      "modifier": "Stacy Hung 洪翠禪",
-      "action": "刪除",
-      "file_name": "To-do list (CPSG)_20260105.xlsx",
-      "folder": "CPSG",
       "time_str": "3 天前"
     }
   ]
